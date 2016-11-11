@@ -1,0 +1,150 @@
+---
+title: "Image classification"
+
+---
+
+```{r, echo=FALSE, warning=FALSE}
+library(knitr)
+opts_chunk$set(cache=TRUE, warning = FALSE, message = FALSE, echo=FALSE)
+```
+
+
+```{r}
+TI <- read.csv("C:/Fall 2016/LInear Alg II/HW2/trainInput.csv", header = FALSE)
+TO <- read.csv("C:/Fall 2016/LInear Alg II/HW2/trainOutput.csv", header = FALSE)
+TestI <- read.csv("C:/Fall 2016/LInear Alg II/HW2/testInput.csv", header = FALSE)
+TestO <- read.csv("C:/Fall 2016/LInear Alg II/HW2/testOutput.csv", header = FALSE)
+T <- cbind(t(TI),t(TO))
+T.g <- T[order(T[,257]),]
+#Order function is used to sort the rows of T by the last column 257 which contains the digit of the training image. 
+#nrow(T.g)
+#ncol(T.g)
+``` 
+
+
+
+```{r}
+A <- list(rep(1,10)) 
+# The matrix T containing all the digits is now categorized into each of the digits to train the model for each digit from 0-9. List A is the output which contains the training data for each digit. 
+for (i in 0:9){ 
+  x <- subset(T.g, T.g[,257]==i)
+  A[[i+1]] <- t(x[,-257])
+}
+#sprintf("Number of elements in A: %s",length(A))
+#sprintf("Number of rows in 1st element of A: %s", nrow(A[[1]]))
+#sprintf("Number of columns in 1st element of A: %s", ncol(A[[1]]))
+``` 
+
+
+```{r}
+# Calculating the SVD of matrix A for each digit. The first 20 left singular vectors are stored in a list of matrices U. U contains 10 matrices, 1 for each digit.    
+A.svd <- lapply(A,svd)
+U <- lapply(A.svd, function(x) {return(x$u[,c(1:20)])})
+# Expressing TestImages as the linear combination of the first 20 singular images. The least square problem for x has solution (Ut)TestImage, since U is orthogonal. 
+#The least square approximation of each test image will then be (U)(Ut)(TestImage) 
+#sprintf("Number of elements in list U: %s", length(U))
+#sprintf("Number of rows in first element of U: %s", nrow(U[[1]]))
+#sprintf("Number of columns in first element of U: %s", ncol(U[[1]]))
+
+``` 
+
+
+```{r}
+LSE.TI <-  lapply(TestI, function(x) { return(lapply(U, function(y) {return (y%*%t(y)%*%x)}))})
+# LSE.TI is a list of lists where each item in the list is a list of least square approximations of the test image as a linear combination of the singular images of each digit. 
+
+``` 
+
+
+
+
+```{r}
+Residuals <- lapply(TestI, function(x) { return(lapply(U, function(y) {return (norm(x-(y%*%t(y)%*%x),"2"))}))})
+# Residuals is a list of lists where each item in the list is a list of Euclidean distance between the test image and the least square approximation of the test images as a linear combination of the singular images of each digit.
+```
+
+
+
+
+```{r}
+Digits.Model <- lapply(Residuals, function(x){return(which.min(unlist(x))-1)})  
+#The least distance between the approximation and the test images is classified as the digit corresponding to the least square distance calculated from the singular images of the said digit.
+
+#sprintf("Number of elements in Digits.Model: %s", length(Digits.Model))
+
+```
+
+
+
+```{r}
+#Confusion Matrix for the Model output 
+
+df <- rbind(matrix(unlist(TestO), nrow = 1), matrix(unlist(Digits.Model),nrow = 1))
+df <- data.frame(t(df))
+colnames(df) <- c("Test", "Output")
+c.matrix <- matrix(c(rep(0,100)), nrow = 10)
+for (i in 0:9){
+  j <- subset(df,Test==i)
+  tablej <- table(j)
+  namesj <- colnames(tablej)
+  for (k in 1:length(tablej)){
+  c.matrix[i+1,as.integer(namesj[k])+1] <- round(tablej[k]*100/sum(tablej),2)
+}
+}
+
+colnames(c.matrix)<- c("0","1","2","3","4","5","6","7","8","9")
+rownames(c.matrix) <- colnames(c.matrix)
+#c.matrix
+# The matrix gives rowwise classification of each digit 
+# Each row represents the percentage of times the row digit was classified as the column digit 
+
+
+```
+
+
+Input Digit Image 
+
+
+```{r}
+t <- matrix(TestI[,1], nrow = 16)
+image(t(apply(t,1,rev)), axes = FALSE, col = grey(seq(0, 1, length = 256)))
+
+```
+
+Model Output Digit 
+```{r}
+Digits.Model[[1]]
+
+```
+
+
+Input Digit Image
+
+
+```{r}
+t <- matrix(TestI[,2], nrow = 16)
+image(t(apply(t,1,rev)), axes = FALSE, col = grey(seq(0, 1, length = 256)))
+
+```
+
+Model Output Digit 
+```{r}
+Digits.Model[[2]]
+
+```
+
+
+Input Digit Image
+
+
+```{r}
+t <- matrix(TestI[,3], nrow = 16)
+image(t(apply(t,1,rev)), axes = FALSE, col = grey(seq(0, 1, length = 256)))
+
+```
+
+Model Output Digit 
+```{r}
+Digits.Model[[3]]
+
+```
